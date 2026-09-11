@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Needed for pdf-parse which uses fs module
+  serverExternalPackages: ['pdf-parse'],
+  experimental: {},
+}
 
 export default nextConfig;
