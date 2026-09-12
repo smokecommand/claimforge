@@ -55,6 +55,7 @@ export interface LineItemResult {
   f9_suggestion?: string
   severity?: 'low' | 'medium' | 'high'
   xactimate_code?: string
+  standard?: 'S-500' | 'S-700' | 'both'
 }
 
 export interface MissingItem {
@@ -64,4 +65,5 @@ export interface MissingItem {
   f9_note: string
   estimated_value?: number
   severity: 'low' | 'medium' | 'high'
+  standard?: 'S-500' | 'S-700' | 'both'
 }

@@ -226,7 +226,7 @@ export default function UploadZone() {
       </button>
 
       <p className="text-center text-xs text-gray-600">
-        Audit runs against ANSI/IICRC S-700 (2025) · NADCA ACR-2021 · OSHA 29 CFR 1910
+        Audit runs against ANSI/IICRC S-500 (Water) · S-700 (2025, Fire/Smoke) · NADCA ACR-2021 · OSHA 29 CFR 1910
       </p>
     </div>
   )

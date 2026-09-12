@@ -6,8 +6,8 @@ export default function HomePage() {
       {/* Hero */}
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 bg-amber-950/30 border border-amber-800 rounded-full px-4 py-1.5 text-amber-400 text-sm font-medium mb-6">
-          <span>🔥</span>
-          <span>Powered by ANSI/IICRC S-700 (2025) + Claude AI</span>
+          <span>🔥💧</span>
+          <span>Powered by IICRC S-500 · S-700 (2025) + Claude AI</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
@@ -16,7 +16,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-gray-400 text-lg max-w-xl mx-auto">
-          Upload your Xactimate PDF. ClaimForge reads it against S-700, flags missing line items,
+          Upload your Xactimate PDF. ClaimForge reads it against S-500 (water) and S-700 (fire/smoke), flags missing line items,
           weak F9 notes, and common denial triggers — then gives you ready-to-paste F9 language.
         </p>
       </div>
@@ -28,8 +28,8 @@ export default function HomePage() {
       <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-2xl">
         <div className="text-center">
           <div className="text-2xl mb-2">📋</div>
-          <div className="text-gray-300 font-medium text-sm">S-700 Standards Baked In</div>
-          <div className="text-gray-600 text-xs mt-1">Every check mapped to ANSI/IICRC S-700 (2025)</div>
+          <div className="text-gray-300 font-medium text-sm">S-500 + S-700 Baked In</div>
+          <div className="text-gray-600 text-xs mt-1">Water audits use S-500; fire/smoke use S-700 (2025)</div>
         </div>
         <div className="text-center">
           <div className="text-2xl mb-2">⚡</div>

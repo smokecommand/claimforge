@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AuditResult, CfAudit } from '@/lib/supabase'
-import { SeverityBadge, ItemStatusBadge } from './StatusBadge'
+import { SeverityBadge, ItemStatusBadge, StandardBadge } from './StatusBadge'
 
 interface AuditResultProps {
   audit: CfAudit
@@ -282,6 +282,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <ItemStatusBadge status={item.status} />
                         {item.severity && item.status !== 'pass' && <SeverityBadge severity={item.severity} />}
+                        {item.status !== 'pass' && item.standard && <StandardBadge standard={item.standard} />}
                         <span className="text-gray-200 font-medium">{item.item}</span>
                         {item.xactimate_code && (
                           <span className="text-gray-500 text-xs font-mono">{item.xactimate_code}</span>
@@ -330,6 +331,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <SeverityBadge severity={item.severity} />
+                        {item.standard && <StandardBadge standard={item.standard} />}
                         <span className="text-red-300 font-medium">{item.item}</span>
                         {item.xactimate_code && (
                           <span className="text-gray-500 text-xs font-mono bg-gray-800 px-2 py-0.5 rounded">

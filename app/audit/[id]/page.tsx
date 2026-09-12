@@ -134,7 +134,7 @@ export default function AuditPage() {
               {audit.status === 'pending' ? 'Queued for audit...' : 'ClaimForge is reading your estimate...'}
             </div>
             <div className="text-gray-500 text-sm">
-              Checking against S-700, NADCA ACR-2021, and carrier denial triggers
+              Checking against S-500, S-700, NADCA ACR-2021, and carrier denial triggers
             </div>
           </div>
 

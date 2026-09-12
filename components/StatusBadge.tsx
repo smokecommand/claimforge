@@ -61,6 +61,25 @@ export function SeverityBadge({ severity }: SeverityBadgeProps) {
   )
 }
 
+interface StandardBadgeProps {
+  standard?: 'S-500' | 'S-700' | 'both'
+}
+
+export function StandardBadge({ standard }: StandardBadgeProps) {
+  if (!standard) return null
+  const config = {
+    'S-500': { label: 'S-500 Water', className: 'bg-blue-950/40 text-blue-300 border border-blue-800' },
+    'S-700': { label: 'S-700 Fire', className: 'bg-orange-950/40 text-orange-300 border border-orange-800' },
+    'both': { label: 'S-500 + S-700', className: 'bg-purple-950/40 text-purple-300 border border-purple-800' },
+  }
+  const c = config[standard]
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${c.className}`}>
+      {c.label}
+    </span>
+  )
+}
+
 interface ItemStatusBadgeProps {
   status: 'pass' | 'flag' | 'missing'
 }
