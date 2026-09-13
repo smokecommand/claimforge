@@ -18,6 +18,19 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 export type AuditStatus = 'pending' | 'processing' | 'complete' | 'error'
 export type LossType = 'water' | 'fire+smoke' | 'water+fire+smoke'
 
+export interface RebuttalItem {
+  item: string
+  carrier_action: string  // "denied" | "reduced" | "questioned"
+  rebuttal_text: string
+  standard_citation: string
+  estimated_recovery: number | null
+}
+
+export interface RebuttalResult {
+  items: RebuttalItem[]
+  cover_letter: string
+}
+
 export interface CfAudit {
   id: string
   created_at: string
@@ -30,6 +43,12 @@ export interface CfAudit {
   total_billed?: number
   audit_result?: AuditResult
   error_message?: string
+  carrier?: string
+  job_notes?: string
+  file_type?: 'pdf' | 'esx'
+  job_id?: string
+  created_by?: string
+  rebuttal_result?: RebuttalResult
 }
 
 export interface AuditResult {

@@ -326,10 +326,12 @@ Return ONLY valid JSON. No markdown, no explanation outside the JSON. The JSON m
 // ─── USER PROMPT BUILDER ──────────────────────────────────────────────────────
 
 export function buildUserPrompt(
-  pdfText: string,
+  estimateText: string,
   lossType: string,
   jobName?: string,
-  claimNumber?: string
+  claimNumber?: string,
+  carrier?: string,
+  jobNotes?: string
 ): string {
   // Determine which standards apply
   const isWater = lossType === 'water' || lossType === 'water+fire+smoke'
@@ -354,20 +356,27 @@ Check: Category/Class documentation, moisture readings, equipment quantity justi
 Check: HVAC scope, odor management layers, source removal, sealer/encapsulant, equipment justification, PPE, and all S-700 requirements.`
   }
 
+  let carrierNote = ''
+  if (carrier && carrier !== 'Not Specified') {
+    carrierNote = `\n\n**Note on carrier:** This claim is with **${carrier}**. Pay special attention to line items this carrier commonly disputes: undocumented equipment quantities, missing F9 notes, antimicrobial without Cat/Class documentation, and any items that appear as round numbers without measurements.`
+  }
+
   return `## ESTIMATE TO AUDIT
 
 **Job Name:** ${jobName || 'Not provided'}
 **Claim Number:** ${claimNumber || 'Not provided'}
 **Loss Type (as submitted):** ${lossType}
-${standardsLine}
+**Carrier:** ${carrier || 'Not specified'}
+**Job Notes from Estimator:** ${jobNotes || 'None'}
+${standardsLine}${carrierNote}
 
 ## AUDIT SCOPE
 
 ${auditScope}
 
-## PDF ESTIMATE TEXT:
+## ESTIMATE TEXT:
 
-${pdfText}
+${estimateText}
 
 ---
 

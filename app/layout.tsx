@@ -33,6 +33,9 @@ export default function RootLayout({
               <div className="ml-4 text-gray-600 text-sm hidden sm:block">
                 Xactimate Estimate Auditor
               </div>
+              <nav className="ml-6 flex items-center gap-4">
+                <a href="/audits" className="text-gray-400 hover:text-gray-200 text-sm transition-colors">History</a>
+              </nav>
               <div className="ml-auto text-xs text-gray-600 hidden md:block">
                 Patriot Water Mitigation Specialists / Restore Medics USA
               </div>

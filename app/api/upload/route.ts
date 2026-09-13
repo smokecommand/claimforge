@@ -6,9 +6,23 @@ import { v4 as uuidv4 } from 'uuid'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-// Need uuid package or use crypto
 function generateId(): string {
   return uuidv4()
+}
+
+const ESX_MIME_TYPES = [
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/octet-stream',
+  'application/x-zip',
+  '',
+]
+
+function detectFileType(fileName: string): 'pdf' | 'esx' | null {
+  const lower = fileName.toLowerCase()
+  if (lower.endsWith('.pdf')) return 'pdf'
+  if (lower.endsWith('.esx')) return 'esx'
+  return null
 }
 
 export async function POST(request: NextRequest) {
@@ -18,13 +32,16 @@ export async function POST(request: NextRequest) {
     const jobName = formData.get('jobName') as string | undefined
     const claimNumber = formData.get('claimNumber') as string | undefined
     const lossType = (formData.get('lossType') as string) || 'fire+smoke'
+    const carrier = (formData.get('carrier') as string) || undefined
+    const jobNotes = (formData.get('jobNotes') as string) || undefined
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return NextResponse.json({ error: 'Only PDF files are accepted' }, { status: 400 })
+    const fileType = detectFileType(file.name)
+    if (!fileType) {
+      return NextResponse.json({ error: 'Only PDF and ESX files are accepted' }, { status: 400 })
     }
 
     if (file.size > 50 * 1024 * 1024) {
@@ -33,17 +50,23 @@ export async function POST(request: NextRequest) {
 
     // Generate unique audit ID
     const auditId = generateId()
-    const filePath = `${auditId}.pdf`
+    const filePath = `${auditId}.${fileType}`
 
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer()
     const fileBuffer = Buffer.from(arrayBuffer)
 
-    // Upload PDF to Supabase storage
+    // Determine content type
+    const contentType =
+      fileType === 'pdf'
+        ? 'application/pdf'
+        : 'application/zip'
+
+    // Upload file to Supabase storage
     const { error: uploadError } = await supabaseAdmin.storage
       .from('claimforge-pdfs')
       .upload(filePath, fileBuffer, {
-        contentType: 'application/pdf',
+        contentType,
         upsert: false,
       })
 
@@ -66,11 +89,13 @@ export async function POST(request: NextRequest) {
         job_name: jobName || null,
         claim_number: claimNumber || null,
         loss_type: lossType,
+        carrier: carrier || null,
+        job_notes: jobNotes || null,
+        file_type: fileType,
       })
 
     if (insertError) {
       console.error('Database insert error:', insertError)
-      // Clean up the uploaded file
       await supabaseAdmin.storage.from('claimforge-pdfs').remove([filePath])
       return NextResponse.json(
         { error: `Failed to create audit record: ${insertError.message}` },
@@ -78,10 +103,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Run audit asynchronously (fire and forget for MVP)
-    // We don't await this — we return immediately with the auditId
-    // and the client polls /api/audit/[id] for status
-    runAudit(auditId, filePath, lossType, jobName, claimNumber).catch((err) => {
+    // Run audit asynchronously
+    runAudit(auditId, filePath, lossType, fileType, jobName, claimNumber, carrier, jobNotes).catch((err) => {
       console.error(`Background audit failed for ${auditId}:`, err)
     })
 

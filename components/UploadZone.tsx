@@ -5,17 +5,53 @@ import { useRouter } from 'next/navigation'
 
 type LossType = 'water' | 'fire+smoke' | 'water+fire+smoke'
 
+const CARRIERS = [
+  'Not Specified',
+  'State Farm',
+  'Allstate',
+  'Farmers',
+  'USAA',
+  'Citizens',
+  'Liberty Mutual',
+  'Nationwide',
+  'Travelers',
+  'Auto-Owners',
+  'Erie',
+  'Other',
+]
+
+function getFileType(file: File): 'pdf' | 'esx' | null {
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.pdf')) return 'pdf'
+  if (name.endsWith('.esx')) return 'esx'
+  return null
+}
+
 export default function UploadZone() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileType, setFileType] = useState<'pdf' | 'esx' | null>(null)
   const [jobName, setJobName] = useState('')
   const [claimNumber, setClaimNumber] = useState('')
   const [lossType, setLossType] = useState<LossType>('fire+smoke')
+  const [carrier, setCarrier] = useState('Not Specified')
+  const [jobNotes, setJobNotes] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const validateAndSetFile = (file: File) => {
+    const type = getFileType(file)
+    if (!type) {
+      setError('Only PDF and ESX files are accepted')
+      return
+    }
+    setSelectedFile(file)
+    setFileType(type)
+    setError(null)
+  }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -31,25 +67,21 @@ export default function UploadZone() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file)
-      setError(null)
-    } else {
-      setError('Please drop a PDF file')
+    if (file) {
+      validateAndSetFile(file)
     }
   }, [])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
-      setError(null)
+      validateAndSetFile(file)
     }
   }, [])
 
   const handleSubmit = async () => {
     if (!selectedFile) {
-      setError('Please select a PDF file')
+      setError('Please select a PDF or ESX file')
       return
     }
 
@@ -62,6 +94,8 @@ export default function UploadZone() {
       formData.append('lossType', lossType)
       if (jobName.trim()) formData.append('jobName', jobName.trim())
       if (claimNumber.trim()) formData.append('claimNumber', claimNumber.trim())
+      if (carrier && carrier !== 'Not Specified') formData.append('carrier', carrier)
+      if (jobNotes.trim()) formData.append('jobNotes', jobNotes.trim())
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -109,7 +143,7 @@ export default function UploadZone() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,application/pdf"
+          accept=".pdf,.esx,application/pdf,application/zip"
           onChange={handleFileSelect}
           className="hidden"
           disabled={isUploading}
@@ -117,9 +151,20 @@ export default function UploadZone() {
 
         {selectedFile ? (
           <div className="space-y-2">
-            <div className="text-4xl">📄</div>
+            <div className="text-4xl">{fileType === 'esx' ? '📦' : '📄'}</div>
             <div className="text-emerald-400 font-medium text-lg">{selectedFile.name}</div>
-            <div className="text-gray-400 text-sm">{formatFileSize(selectedFile.size)}</div>
+            <div className="flex items-center justify-center gap-2">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                  fileType === 'esx'
+                    ? 'text-cyan-400 bg-cyan-950/40 border-cyan-800'
+                    : 'text-gray-400 bg-gray-800 border-gray-700'
+                }`}
+              >
+                {fileType?.toUpperCase()}
+              </span>
+              <span className="text-gray-400 text-sm">{formatFileSize(selectedFile.size)}</span>
+            </div>
             {!isUploading && (
               <div className="text-gray-500 text-xs mt-2">Click to change file</div>
             )}
@@ -127,9 +172,9 @@ export default function UploadZone() {
         ) : (
           <div className="space-y-3">
             <div className="text-5xl">📋</div>
-            <div className="text-gray-200 font-medium text-lg">Drop your Xactimate PDF here</div>
+            <div className="text-gray-200 font-medium text-lg">Drop your Xactimate PDF or ESX file here</div>
             <div className="text-gray-500 text-sm">or click to browse</div>
-            <div className="text-gray-600 text-xs">PDF files up to 50MB</div>
+            <div className="text-gray-600 text-xs">PDF or ESX files up to 50MB</div>
           </div>
         )}
       </div>
@@ -191,6 +236,40 @@ export default function UploadZone() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Carrier Dropdown */}
+      <div>
+        <label className="block text-sm font-medium text-gray-400 mb-1.5">
+          Carrier <span className="text-gray-600">(optional)</span>
+        </label>
+        <select
+          value={carrier}
+          onChange={(e) => setCarrier(e.target.value)}
+          disabled={isUploading}
+          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 disabled:opacity-50 text-sm"
+        >
+          {CARRIERS.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Job Notes */}
+      <div>
+        <label className="block text-sm font-medium text-gray-400 mb-1.5">
+          Estimator Notes <span className="text-gray-600">(optional)</span>
+        </label>
+        <textarea
+          value={jobNotes}
+          onChange={(e) => setJobNotes(e.target.value)}
+          placeholder="e.g. Cat 3 loss, fire suppression water used, PVC pipes burned in kitchen, homeowner has 2 dogs..."
+          disabled={isUploading}
+          rows={3}
+          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 disabled:opacity-50 text-sm resize-none"
+        />
       </div>
 
       {/* Error */}

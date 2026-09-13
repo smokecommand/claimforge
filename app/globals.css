@@ -33,3 +33,37 @@ body {
 pre {
   overflow-x: auto;
 }
+
+/* Print styles */
+@media print {
+  nav,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .hidden.print\:block {
+    display: block !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  .max-w-5xl,
+  .max-w-7xl {
+    max-width: 100% !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  @page {
+    margin: 1in;
+    size: letter;
+  }
+}

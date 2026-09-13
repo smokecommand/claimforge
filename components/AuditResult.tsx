@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AuditResult, CfAudit } from '@/lib/supabase'
+import { AuditResult, CfAudit, RebuttalResult, RebuttalItem } from '@/lib/supabase'
 import { SeverityBadge, ItemStatusBadge, StandardBadge } from './StatusBadge'
 
 interface AuditResultProps {
@@ -15,9 +15,9 @@ function ScoreGauge({ score }: { score: number }) {
   const strokeDash = (clampedScore / 100) * circumference
 
   const getColor = (s: number) => {
-    if (s >= 80) return '#10b981' // emerald
-    if (s >= 60) return '#f59e0b' // amber
-    return '#ef4444' // red
+    if (s >= 80) return '#10b981'
+    if (s >= 60) return '#f59e0b'
+    return '#ef4444'
   }
 
   const color = getColor(clampedScore)
@@ -53,7 +53,7 @@ function ScoreGauge({ score }: { score: number }) {
   )
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -67,7 +67,7 @@ function CopyButton({ text }: { text: string }) {
       onClick={handleCopy}
       className="text-xs text-amber-400 hover:text-amber-300 border border-amber-800 hover:border-amber-600 px-2 py-1 rounded transition-colors"
     >
-      {copied ? '✓ Copied' : 'Copy F9'}
+      {copied ? '✓ Copied' : label}
     </button>
   )
 }
@@ -77,8 +77,230 @@ function formatCurrency(value: number | null | undefined): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
 }
 
+// ─── Rebuttal Tab ──────────────────────────────────────────────────────────────
+
+interface DeniedItem {
+  item: string
+  action: string
+  amount_cut: string
+}
+
+function RebuttalTab({ audit }: { audit: CfAudit }) {
+  const existingRebuttal = audit.rebuttal_result as RebuttalResult | undefined
+
+  const [items, setItems] = useState<DeniedItem[]>(
+    existingRebuttal
+      ? []
+      : [{ item: '', action: 'denied', amount_cut: '' }]
+  )
+  const [rebuttal, setRebuttal] = useState<RebuttalResult | null>(existingRebuttal || null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const addItem = () => {
+    setItems((prev) => [...prev, { item: '', action: 'denied', amount_cut: '' }])
+  }
+
+  const removeItem = (i: number) => {
+    setItems((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  const updateItem = (i: number, field: keyof DeniedItem, value: string) => {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)))
+  }
+
+  const handleGenerate = async () => {
+    const validItems = items.filter((it) => it.item.trim())
+    if (validItems.length === 0) {
+      setError('Add at least one denied item')
+      return
+    }
+
+    setIsGenerating(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/audit/${audit.id}/rebuttal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          denied_items: validItems.map((it) => ({
+            item: it.item.trim(),
+            action: it.action,
+            amount_cut: it.amount_cut ? parseFloat(it.amount_cut) : undefined,
+          })),
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to generate rebuttal')
+      setRebuttal(data.rebuttal)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate rebuttal')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  if (rebuttal) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-gray-200 font-semibold">Carrier Rebuttal</h3>
+          <button
+            onClick={() => { setRebuttal(null); setItems([{ item: '', action: 'denied', amount_cut: '' }]) }}
+            className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 hover:border-gray-500 px-2 py-1 rounded transition-colors"
+          >
+            ↺ New Rebuttal
+          </button>
+        </div>
+
+        {/* Cover Letter */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-amber-400 font-semibold text-sm uppercase tracking-wider">📝 Cover Letter</h4>
+            <CopyButton text={rebuttal.cover_letter} label="Copy Letter" />
+          </div>
+          <pre className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap font-mono">
+            {rebuttal.cover_letter}
+          </pre>
+        </div>
+
+        {/* Rebuttal Items */}
+        <div className="space-y-4">
+          {rebuttal.items.map((item: RebuttalItem, i: number) => (
+            <div key={i} className="bg-gray-900 border border-amber-900/50 rounded-xl p-5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-gray-200 font-medium">{item.item}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded border ${
+                      item.carrier_action === 'denied'
+                        ? 'text-red-400 border-red-800 bg-red-950/30'
+                        : item.carrier_action === 'reduced'
+                          ? 'text-amber-400 border-amber-800 bg-amber-950/30'
+                          : 'text-blue-400 border-blue-800 bg-blue-950/30'
+                    }`}>
+                      {item.carrier_action}
+                    </span>
+                    {item.estimated_recovery != null && (
+                      <span className="text-emerald-400 text-xs">~{formatCurrency(item.estimated_recovery)} recovery</span>
+                    )}
+                  </div>
+                </div>
+                <CopyButton text={item.rebuttal_text} label="Copy Rebuttal" />
+              </div>
+              <div className="text-amber-400 text-xs font-medium mb-2">📌 {item.standard_citation}</div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-gray-300 text-xs leading-relaxed">{item.rebuttal_text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-amber-950/20 border border-amber-800 rounded-xl p-4 text-sm text-amber-300">
+        <strong>🔥 Carrier denied or cut your estimate?</strong> Enter the items below and ClaimForge will generate a formal, citation-backed rebuttal letter.
+      </div>
+
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1 space-y-3">
+                <input
+                  type="text"
+                  value={item.item}
+                  onChange={(e) => updateItem(i, 'item', e.target.value)}
+                  placeholder="Line item name (e.g. Antimicrobial Treatment, Equipment Monitoring)"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-600 focus:outline-none focus:border-amber-500 text-sm"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Action</label>
+                    <select
+                      value={item.action}
+                      onChange={(e) => updateItem(i, 'action', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-amber-500 text-sm"
+                    >
+                      <option value="denied">Denied</option>
+                      <option value="reduced">Reduced</option>
+                      <option value="questioned">Questioned</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Amount Cut ($)</label>
+                    <input
+                      type="number"
+                      value={item.amount_cut}
+                      onChange={(e) => updateItem(i, 'amount_cut', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-600 focus:outline-none focus:border-amber-500 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              {items.length > 1 && (
+                <button
+                  onClick={() => removeItem(i)}
+                  className="text-gray-600 hover:text-red-400 transition-colors mt-2 text-lg leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={addItem}
+        className="w-full py-2 border border-dashed border-gray-700 hover:border-amber-600 text-gray-500 hover:text-amber-400 rounded-xl text-sm transition-colors"
+      >
+        + Add Item
+      </button>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-950/30 border border-red-800 text-red-400 text-sm">
+          ⚠️ {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleGenerate}
+        disabled={isGenerating}
+        className={`
+          w-full py-4 rounded-xl font-semibold text-lg transition-all duration-200
+          ${!isGenerating
+            ? 'bg-amber-500 hover:bg-amber-400 text-black cursor-pointer'
+            : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+          }
+        `}
+      >
+        {isGenerating ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Generating Rebuttal...
+          </span>
+        ) : (
+          '🔥 Generate Rebuttal Letter'
+        )}
+      </button>
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function AuditResultDisplay({ audit }: AuditResultProps) {
-  const [activeTab, setActiveTab] = useState<'summary' | 'line-items' | 'missing' | 'supplement'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'line-items' | 'missing' | 'supplement' | 'rebuttal'>('summary')
 
   const result = audit.audit_result as AuditResult
 
@@ -91,6 +313,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
     { id: 'line-items', label: '📋 Line Items', count: (summary?.passed_count ?? 0) + (summary?.flagged_count ?? 0) },
     { id: 'missing', label: '❌ Missing Items', count: summary?.missing_count ?? missing_items.length },
     { id: 'supplement', label: '📝 Supplement', count: null },
+    { id: 'rebuttal', label: '🔥 Rebuttal', count: null },
   ] as const
 
   // Build supplement text
@@ -124,12 +347,16 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
     ]).flat(),
   ].join('\n')
 
+  const handlePrint = () => {
+    window.print()
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
       {/* Header Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
         {/* Score Gauge */}
-        <div className="sm:col-span-1 bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center justify-center">
+        <div className="sm:col-span-1 bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center justify-center print:hidden">
           <ScoreGauge score={summary?.overall_score ?? 0} />
         </div>
 
@@ -165,8 +392,18 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
         </div>
       )}
 
+      {/* Print + Actions bar */}
+      <div className="flex items-center justify-end gap-2 print:hidden">
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          🖨️ Download PDF
+        </button>
+      </div>
+
       {/* Tabs */}
-      <div className="border-b border-gray-800">
+      <div className="border-b border-gray-800 print:hidden">
         <nav className="flex space-x-1">
           {tabs.map((tab) => (
             <button
@@ -247,8 +484,16 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                     <span className="text-gray-300">{audit.claim_number || '—'}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-500">Carrier</span>
+                    <span className="text-gray-300">{audit.carrier || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-500">Loss Type</span>
                     <span className="text-gray-300">{audit.loss_type || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">File Type</span>
+                    <span className="text-gray-300 uppercase">{audit.file_type || 'PDF'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">File</span>
@@ -306,7 +551,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                         <div className="mt-3 bg-gray-800 rounded-lg p-3">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">F9 Suggestion</span>
-                            <CopyButton text={item.f9_suggestion} />
+                            <CopyButton text={item.f9_suggestion} label="Copy F9" />
                           </div>
                           <p className="text-gray-300 text-xs leading-relaxed">{item.f9_suggestion}</p>
                         </div>
@@ -350,7 +595,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                       <div className="mt-3 bg-gray-800 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">Ready-to-Paste F9 Note</span>
-                          <CopyButton text={item.f9_note} />
+                          <CopyButton text={item.f9_note} label="Copy F9" />
                         </div>
                         <p className="text-gray-300 text-xs leading-relaxed">{item.f9_note}</p>
                       </div>
@@ -367,7 +612,7 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-gray-400 text-sm">Complete supplement text with all F9 notes — ready to copy into your supplement letter.</p>
-              <CopyButton text={supplementText} />
+              <CopyButton text={supplementText} label="Copy All" />
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <pre className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap font-mono">
@@ -376,6 +621,45 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
             </div>
           </div>
         )}
+
+        {/* Rebuttal Tab */}
+        {activeTab === 'rebuttal' && (
+          <RebuttalTab audit={audit} />
+        )}
+      </div>
+
+      {/* Print-only full view */}
+      <div className="hidden print:block space-y-8">
+        <div>
+          <h2 className="text-xl font-bold">ClaimForge Audit Report</h2>
+          <p>Job: {audit.job_name || '—'} | Claim: {audit.claim_number || '—'} | Score: {summary?.overall_score ?? 0}/100</p>
+          <p>Total Billed: {formatCurrency(summary?.total_billed)} | Supplement Opportunity: {formatCurrency(summary?.supplement_total)}</p>
+        </div>
+
+        <div>
+          <h3 className="font-bold text-lg">Critical Gaps</h3>
+          <ul>{summary?.critical_gaps?.map((g, i) => <li key={i}>• {g}</li>)}</ul>
+        </div>
+
+        <div>
+          <h3 className="font-bold text-lg">Flagged Line Items</h3>
+          {line_items.filter((li) => li.status === 'flag').map((li, i) => (
+            <div key={i} style={{ marginBottom: '1rem' }}>
+              <strong>{li.item}</strong> — {li.issue}
+              {li.f9_suggestion && <p style={{ fontSize: '0.85em' }}>F9: {li.f9_suggestion}</p>}
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <h3 className="font-bold text-lg">Missing Line Items</h3>
+          {missing_items.map((mi, i) => (
+            <div key={i} style={{ marginBottom: '1rem' }}>
+              <strong>{mi.item}</strong> ({formatCurrency(mi.estimated_value)}) — {mi.reason}
+              <p style={{ fontSize: '0.85em' }}>F9: {mi.f9_note}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

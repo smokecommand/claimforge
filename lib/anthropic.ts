@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { PDFParse } from 'pdf-parse'
 import { supabaseAdmin, AuditResult } from './supabase'
 import { CLAIMFORGE_SYSTEM_PROMPT, buildUserPrompt } from './prompts'
+import { parseEsxFile } from './esx-parser'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,8 +18,11 @@ export async function runAudit(
   auditId: string,
   filePath: string,
   lossType: string,
+  fileType: 'pdf' | 'esx' = 'pdf',
   jobName?: string,
-  claimNumber?: string
+  claimNumber?: string,
+  carrier?: string,
+  jobNotes?: string
 ): Promise<void> {
   try {
     // Update status to processing
@@ -27,37 +31,45 @@ export async function runAudit(
       .update({ status: 'processing' })
       .eq('id', auditId)
 
-    // Download PDF from Supabase storage
+    // Download file from Supabase storage
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from('claimforge-pdfs')
       .download(filePath)
 
     if (downloadError || !fileData) {
-      throw new Error(`Failed to download PDF: ${downloadError?.message}`)
+      throw new Error(`Failed to download file: ${downloadError?.message}`)
     }
 
     // Convert blob to buffer
     const arrayBuffer = await fileData.arrayBuffer()
-    const pdfBuffer = Buffer.from(arrayBuffer)
+    const fileBuffer = Buffer.from(arrayBuffer)
 
-    // Extract text from PDF
-    let pdfText: string
+    // Extract text based on file type
+    let estimateText: string
     try {
-      pdfText = await extractPdfText(pdfBuffer)
+      if (fileType === 'esx') {
+        estimateText = await parseEsxFile(fileBuffer)
+      } else {
+        estimateText = await extractPdfText(fileBuffer)
+      }
     } catch (e) {
-      throw new Error(`Failed to extract PDF text: ${e instanceof Error ? e.message : String(e)}`)
+      throw new Error(
+        `Failed to extract text from ${fileType.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}`
+      )
     }
 
-    if (!pdfText || pdfText.trim().length < 100) {
-      throw new Error('PDF text extraction returned insufficient content. The PDF may be image-based or encrypted.')
+    if (!estimateText || estimateText.trim().length < 100) {
+      throw new Error(
+        `Text extraction returned insufficient content. The ${fileType.toUpperCase()} may be invalid or encrypted.`
+      )
     }
 
     // Build the user prompt
-    const userPrompt = buildUserPrompt(pdfText, lossType, jobName, claimNumber)
+    const userPrompt = buildUserPrompt(estimateText, lossType, jobName, claimNumber, carrier, jobNotes)
 
     // Call Claude
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 8096,
       system: CLAIMFORGE_SYSTEM_PROMPT,
       messages: [
