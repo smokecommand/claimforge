@@ -72,6 +72,65 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
   )
 }
 
+function SaveToLibraryButton({
+  itemName,
+  xactimateCode,
+  lossType,
+  carrier,
+  f9Text,
+  category,
+}: {
+  itemName: string
+  xactimateCode?: string | null
+  lossType?: string | null
+  carrier?: string | null
+  f9Text: string
+  category: string
+}) {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  const handleSave = async () => {
+    setState('saving')
+    try {
+      const res = await fetch('/api/f9-library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category,
+          item_name: itemName,
+          xactimate_code: xactimateCode || null,
+          loss_type: lossType || 'all',
+          carrier: carrier || null,
+          f9_text: f9Text,
+        }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setState('saved')
+    } catch {
+      setState('error')
+      setTimeout(() => setState('idle'), 3000)
+    }
+  }
+
+  if (state === 'saved') {
+    return (
+      <span className="text-xs text-emerald-400 border border-emerald-800 px-2 py-1 rounded">
+        ✓ Saved
+      </span>
+    )
+  }
+
+  return (
+    <button
+      onClick={handleSave}
+      disabled={state === 'saving'}
+      className="text-xs text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-500 px-2 py-1 rounded transition-colors disabled:opacity-50"
+    >
+      {state === 'saving' ? '...' : state === 'error' ? '✗ Error' : '💾 Save'}
+    </button>
+  )
+}
+
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return 'N/A'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
@@ -551,7 +610,17 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                         <div className="mt-3 bg-gray-800 rounded-lg p-3">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">F9 Suggestion</span>
-                            <CopyButton text={item.f9_suggestion} label="Copy F9" />
+                            <div className="flex items-center gap-1.5">
+                              <SaveToLibraryButton
+                                itemName={item.item}
+                                xactimateCode={item.xactimate_code}
+                                lossType={audit.loss_type}
+                                carrier={audit.carrier}
+                                f9Text={item.f9_suggestion}
+                                category="Flagged Line Item"
+                              />
+                              <CopyButton text={item.f9_suggestion} label="Copy F9" />
+                            </div>
                           </div>
                           <p className="text-gray-300 text-xs leading-relaxed">{item.f9_suggestion}</p>
                         </div>
@@ -595,7 +664,17 @@ export default function AuditResultDisplay({ audit }: AuditResultProps) {
                       <div className="mt-3 bg-gray-800 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">Ready-to-Paste F9 Note</span>
-                          <CopyButton text={item.f9_note} label="Copy F9" />
+                          <div className="flex items-center gap-1.5">
+                            <SaveToLibraryButton
+                              itemName={item.item}
+                              xactimateCode={item.xactimate_code}
+                              lossType={audit.loss_type}
+                              carrier={audit.carrier}
+                              f9Text={item.f9_note}
+                              category="Missing Item"
+                            />
+                            <CopyButton text={item.f9_note} label="Copy F9" />
+                          </div>
                         </div>
                         <p className="text-gray-300 text-xs leading-relaxed">{item.f9_note}</p>
                       </div>
