@@ -2,6 +2,12 @@
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/upload/start/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/audit/[id]/route.ts": {
+      "maxDuration": 300
     }
   }
 }

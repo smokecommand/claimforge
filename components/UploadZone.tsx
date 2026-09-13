@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 
 type LossType = 'water' | 'fire+smoke' | 'water+fire+smoke'
 
@@ -79,6 +80,8 @@ export default function UploadZone() {
     }
   }, [])
 
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null)
+
   const handleSubmit = async () => {
     if (!selectedFile) {
       setError('Please select a PDF or ESX file')
@@ -87,30 +90,53 @@ export default function UploadZone() {
 
     setIsUploading(true)
     setError(null)
+    setUploadProgress('Preparing upload...')
 
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('lossType', lossType)
-      if (jobName.trim()) formData.append('jobName', jobName.trim())
-      if (claimNumber.trim()) formData.append('claimNumber', claimNumber.trim())
-      if (carrier && carrier !== 'Not Specified') formData.append('carrier', carrier)
-      if (jobNotes.trim()) formData.append('jobNotes', jobNotes.trim())
-
-      const response = await fetch('/api/upload', {
+      // Step 1: Get signed upload URL + create audit record
+      const presignRes = await fetch('/api/upload/presign', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: selectedFile.name,
+          lossType,
+          jobName: jobName.trim() || undefined,
+          claimNumber: claimNumber.trim() || undefined,
+          carrier: carrier !== 'Not Specified' ? carrier : undefined,
+          jobNotes: jobNotes.trim() || undefined,
+        }),
       })
 
-      const data = await response.json()
+      const presignData = await presignRes.json()
+      if (!presignRes.ok) throw new Error(presignData.error || 'Failed to prepare upload')
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed')
-      }
+      const { auditId, filePath, token } = presignData
 
-      router.push(`/audit/${data.auditId}`)
+      // Step 2: Upload file directly to Supabase Storage (no Vercel size limit)
+      setUploadProgress(`Uploading ${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB...`)
+      const { error: uploadError } = await supabaseBrowser.storage
+        .from('claimforge-pdfs')
+        .uploadToSignedUrl(filePath, token, selectedFile, {
+          contentType: fileType === 'pdf' ? 'application/pdf' : 'application/zip',
+        })
+
+      if (uploadError) throw new Error(uploadError.message || 'File upload failed')
+
+      // Step 3: Kick off the audit
+      setUploadProgress('Starting audit...')
+      const startRes = await fetch('/api/upload/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auditId }),
+      })
+
+      const startData = await startRes.json()
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start audit')
+
+      router.push(`/audit/${auditId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
+      setUploadProgress(null)
       setIsUploading(false)
     }
   }
@@ -297,7 +323,7 @@ export default function UploadZone() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Uploading...
+            {uploadProgress || 'Uploading...'}
           </span>
         ) : (
           '🔍 Run Audit'
