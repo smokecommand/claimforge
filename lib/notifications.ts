@@ -1,6 +1,9 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function sendAuditNotification(
   auditId: string,
@@ -39,6 +42,8 @@ export async function sendAuditNotification(
   `
 
   try {
+    const resend = getResend()
+    if (!resend || !process.env.NOTIFY_EMAIL) return
     await resend.emails.send({
       from: 'ClaimForge <dispatch@patriotwms.com>',
       to: [process.env.NOTIFY_EMAIL],
