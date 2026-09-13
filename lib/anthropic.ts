@@ -3,6 +3,7 @@ import { PDFParse } from 'pdf-parse'
 import { supabaseAdmin, AuditResult } from './supabase'
 import { CLAIMFORGE_SYSTEM_PROMPT, buildUserPrompt } from './prompts'
 import { parseEsxFile } from './esx-parser'
+import { sendAuditNotification } from './notifications'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -116,6 +117,15 @@ export async function runAudit(
     if (updateError) {
       throw new Error(`Failed to save audit results: ${updateError.message}`)
     }
+
+    // Send completion notification (best-effort)
+    await sendAuditNotification(
+      auditId,
+      jobName,
+      'complete',
+      auditResult.summary?.overall_score,
+      auditResult.summary?.supplement_total
+    )
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     console.error(`Audit ${auditId} failed:`, errorMessage)
@@ -128,5 +138,8 @@ export async function runAudit(
         error_message: errorMessage,
       })
       .eq('id', auditId)
+
+    // Send error notification (best-effort)
+    await sendAuditNotification(auditId, jobName, 'error')
   }
 }

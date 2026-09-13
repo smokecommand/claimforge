@@ -323,6 +323,111 @@ Return ONLY valid JSON. No markdown, no explanation outside the JSON. The JSON m
   ]
 }`
 
+// ─── CARRIER INTELLIGENCE PROFILES ─────────────────────────────────────────
+
+const CARRIER_PROFILES: Record<string, string> = {
+  'State Farm': `
+**STATE FARM — Known Denial Patterns:**
+- Routinely denies antimicrobial without documented Cat/Class and specific product name + EPA Reg # in F9
+- Cuts dehumidifier quantities without panel count or SF calculation in F9 — always show math
+- Denies HEPA vacuum as a line item without explicit S-500 §6 or S-700 §6 citation in F9
+- Challenges air mover quantity without "1 per wet panel" justification with panel count listed
+- Frequently denies equipment monitoring without dated daily log entries referenced in F9
+- Cuts thermal fogging if F9 doesn't specify cubic footage treated and product used
+- Denies containment without specifying linear footage of poly, zipper count, tension pole count
+- Routinely reduces O&P — always document GC/management role explicitly with PM time entries
+- Denies corrosion treatment on metals without listing specific surfaces treated and product used
+- Flags round numbers aggressively — every quantity needs a measurement or calculation`,
+
+  'Allstate': `
+**ALLSTATE — Known Denial Patterns:**
+- Denies pack-out without itemized content inventory and reason for off-site cleaning
+- Cuts HVAC scope heavily — requires NADCA-certified assessor name + certification number in F9
+- Denies hydroxyl generators if ozone also listed — document why hydroxyl chosen over ozone (occupied structure)
+- Challenges shellac/BIN sealer without specifying SF applied, coat count, and coverage rate (250 SF/gal)
+- Frequently reduces project management without supervisor sign-in/out logs cited
+- Denies floor protection without specifying type of material, SF covered, and why needed
+- Questions desiccant dehumidifiers without documentation that ambient conditions required it (temp/humidity data)
+- Cuts debris haul-away without weight/volume estimate in F9
+- Challenges multiple cleaning passes — document each pass with date, method, and surface`,
+
+  'Farmers': `
+**FARMERS — Known Denial Patterns:**
+- Very aggressive on equipment — requires equipment serial numbers or unit IDs in placement logs
+- Denies board-up without specifying board count, lumber dimensions, and SF of openings
+- Cuts negative air machines without cubic footage calculation and ACH justification
+- Challenges duct cleaning without pre/post particle count or visual inspection documentation
+- Denies AHU interior cleaning without line-item breakdown (coil, blower, drain pan separately)
+- Frequently reduces haul-away without trip count and debris type listed
+- Questions emergency service markup without 24/7 response time documented
+- Denies ozone treatment if structure not confirmed evacuated — document evacuation confirmation
+- Cuts chemical sponge cleaning without SF calculation per surface type`,
+
+  'USAA': `
+**USAA — Known Denial Patterns:**
+- Requires veteran/military-specific documentation standards — very thorough review process
+- Denies any item over $500 without two independent sources for pricing (Xactimate + cost manual)
+- Challenges subcontractor invoices — keep all sub receipts and reference them in F9
+- Cuts equipment at 80% of billed days without daily monitoring logs as proof
+- Requires signed authorization from homeowner for each phase of work, not just initial EWA
+- Denies antimicrobial if product is not EPA List G (emerging pathogens) registered
+- Very strict on Category determination — requires water source photo documentation
+- Questions restoration vs replacement decisions without independent assessor report`,
+
+  'Citizens': `
+**CITIZENS (Florida carrier) — Known Denial Patterns:**
+- Applies Florida prompt payment law strictly — document all communications with dates
+- Denies mold-related items without Florida-licensed mold assessor report
+- Challenges Category 3 determination without lab results (E. coli / coliform counts)
+- Cuts equipment that ran past 3 days without daily moisture readings showing ongoing wetness
+- Requires Florida SB-2D compliance documentation on all claims
+- Denies HVAC cleaning without Florida-licensed HVAC contractor signature
+- Aggressive on Assignment of Benefits (AOB) — ensure all documents comply with 2022 AOB reform`,
+
+  'Liberty Mutual': `
+**LIBERTY MUTUAL — Known Denial Patterns:**
+- Frequently uses their own preferred vendor pricing — push back with Xactimate regional pricing documentation
+- Denies emergency services without evidence of emergency (time-stamped photos, police/fire report if applicable)
+- Cuts air scrubber quantities using their own ACH formula — show your ACH calculation explicitly
+- Questions restoration vs replacement on flooring without ICC or manufacturer specs cited
+- Denies temporary power/generator without evidence electrical was compromised (photo + electrician note)
+- Challenges project management on jobs under $25K — document PM role specifically`,
+
+  'Nationwide': `
+**NATIONWIDE — Known Denial Patterns:**
+- Applies depreciation to soft costs aggressively — document that labor and equipment are non-depreciable
+- Denies moisture barrier/floor protection without photo documentation of installation
+- Cuts thermal fogging as "duplicate" if hydroxyl also present — document each serves different function
+- Requires three competitive bids on jobs over $50K — get ahead of this with pre-bid documentation
+- Challenges Category upgrade from 1 to 2/3 without time-stamped photographic evidence
+- Denies encapsulant/sealer if applied before all cleaning verified complete — document cleaning completion first`,
+
+  'Travelers': `
+**TRAVELERS — Known Denial Patterns:**
+- Uses Xactimate pricing strictly — document any above-Xactimate pricing with market rate justification
+- Denies specialty equipment (Injectidry, floor mats) without specific Class 4 documentation
+- Challenges indoor air quality testing as duplicate if wipe testing also performed — document each test purpose
+- Cuts daily monitoring if readings not showing downward trend — document equipment adjustments made
+- Aggressive on contents — requires photo + description of each item before any content manipulation charge
+- Denies hazardous materials disposal without licensed HazMat contractor documentation`,
+
+  'Auto-Owners': `
+**AUTO-OWNERS — Known Denial Patterns:**
+- Regional carrier — adjuster quality varies widely; document everything assuming adjuster is unfamiliar with IICRC
+- Denies industry-standard items frequently — cite S-500/S-700 section number for every single line item
+- Cuts equipment without pushback — always supplement aggressively with monitoring logs
+- Questions antimicrobial as "preventative" — document it as required by S-500 §X for Cat 2/3 remediation
+- Challenges HVAC scope as outside mitigation scope — cite NADCA ACR-2021 and S-700 §7`,
+
+  'Erie': `
+**ERIE — Known Denial Patterns:**
+- Generally fair carrier but very documentation-heavy
+- Requires written scope of work before work begins — EWA alone is not sufficient
+- Denies any change to scope without written change order signed by homeowner AND adjuster
+- Challenges equipment rental rates — use Xactimate regional database and document
+- Requires photo documentation for every single line item billed`,
+}
+
 // ─── USER PROMPT BUILDER ──────────────────────────────────────────────────────
 
 export function buildUserPrompt(
@@ -356,9 +461,11 @@ Check: Category/Class documentation, moisture readings, equipment quantity justi
 Check: HVAC scope, odor management layers, source removal, sealer/encapsulant, equipment justification, PPE, and all S-700 requirements.`
   }
 
-  let carrierNote = ''
-  if (carrier && carrier !== 'Not Specified') {
-    carrierNote = `\n\n**Note on carrier:** This claim is with **${carrier}**. Pay special attention to line items this carrier commonly disputes: undocumented equipment quantities, missing F9 notes, antimicrobial without Cat/Class documentation, and any items that appear as round numbers without measurements.`
+  let carrierSection = ''
+  if (carrier && carrier !== 'Not Specified' && carrier !== 'Other' && CARRIER_PROFILES[carrier]) {
+    carrierSection = `\n\n## CARRIER INTELLIGENCE\n${CARRIER_PROFILES[carrier]}\n\nApply these carrier-specific patterns when auditing. Flag items this carrier commonly disputes with higher severity and include carrier-specific F9 language that directly addresses their known objections.`
+  } else if (carrier && carrier !== 'Not Specified') {
+    carrierSection = `\n\n## CARRIER INTELLIGENCE\n**Carrier: ${carrier}** — No specific profile loaded. Apply general best practices: cite all standards explicitly, justify all quantities with measurements, ensure all F9 notes are specific and complete.`
   }
 
   return `## ESTIMATE TO AUDIT
@@ -368,7 +475,7 @@ Check: HVAC scope, odor management layers, source removal, sealer/encapsulant, e
 **Loss Type (as submitted):** ${lossType}
 **Carrier:** ${carrier || 'Not specified'}
 **Job Notes from Estimator:** ${jobNotes || 'None'}
-${standardsLine}${carrierNote}
+${standardsLine}${carrierSection}
 
 ## AUDIT SCOPE
 

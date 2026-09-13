@@ -36,6 +36,9 @@ export default function NavBar({ userEmail }: NavBarProps) {
             <a href="/" className="text-gray-400 hover:text-gray-200 text-sm transition-colors">
               Home
             </a>
+            <a href="/dashboard" className="text-gray-400 hover:text-gray-200 text-sm transition-colors">
+              Dashboard
+            </a>
             <a href="/audits" className="text-gray-400 hover:text-gray-200 text-sm transition-colors">
               History
             </a>
