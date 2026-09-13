@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         id: auditId,
         file_name: fileName,
         file_path: filePath,
-        status: 'uploading',
+        status: 'pending',
         job_name: jobName || null,
         claim_number: claimNumber || null,
         loss_type: lossType || 'fire+smoke',

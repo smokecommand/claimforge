@@ -24,15 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Audit not found' }, { status: 404 })
     }
 
-    if (audit.status !== 'uploading') {
+    if (audit.status !== 'pending') {
       return NextResponse.json({ error: `Audit is already in status: ${audit.status}` }, { status: 400 })
     }
-
-    // Mark as pending
-    await supabaseAdmin
-      .from('cf_audits')
-      .update({ status: 'pending' })
-      .eq('id', auditId)
 
     // Kick off audit in background
     runAudit(
