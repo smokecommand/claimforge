@@ -2,7 +2,7 @@ import UploadZone from '@/components/UploadZone'
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] py-12">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] py-12 bg-gray-950">
       {/* Hero */}
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 bg-amber-950/30 border border-amber-800 rounded-full px-4 py-1.5 text-amber-400 text-sm font-medium mb-6">

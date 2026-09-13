@@ -105,7 +105,7 @@ export default function AuditPage() {
       : 5
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="max-w-5xl mx-auto py-8 min-h-screen bg-gray-950">
       {/* Back Button */}
       <button
         onClick={() => router.push('/')}

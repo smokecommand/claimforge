@@ -154,7 +154,7 @@ export default async function DashboardPage() {
   const recent = audits.slice(0, 10)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-screen bg-gray-950">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Analytics Dashboard</h1>

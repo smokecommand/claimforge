@@ -5,9 +5,11 @@
   --foreground: #f9fafb;
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #030712 !important;
+  color: #f9fafb;
+  min-height: 100%;
 }
 
 /* Custom scrollbar */

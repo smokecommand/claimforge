@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import NavBar from '@/components/NavBar'
 
 const CARRIERS_JOB = [
   'Not Specified',
@@ -188,7 +187,6 @@ export default function JobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
-      <NavBar />
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
