@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runAudit } from '@/lib/anthropic'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300  // 5 minutes — audit needs time; after() keeps function alive post-response
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,18 +28,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Audit is already in status: ${audit.status}` }, { status: 400 })
     }
 
-    // Kick off audit in background
-    runAudit(
-      auditId,
-      audit.file_path,
-      audit.loss_type,
-      audit.file_type,
-      audit.job_name,
-      audit.claim_number,
-      audit.carrier,
-      audit.job_notes,
-    ).catch((err) => {
-      console.error(`Background audit failed for ${auditId}:`, err)
+    // Use after() so the audit keeps running after the response is sent
+    // Without this, Vercel terminates the function immediately on response and kills the audit
+    after(async () => {
+      await runAudit(
+        auditId,
+        audit.file_path,
+        audit.loss_type,
+        audit.file_type,
+        audit.job_name,
+        audit.claim_number,
+        audit.carrier,
+        audit.job_notes,
+      ).catch((err) => {
+        console.error(`Background audit failed for ${auditId}:`, err)
+      })
     })
 
     return NextResponse.json({ auditId })
