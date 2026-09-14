@@ -1,5 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { PDFParse } from 'pdf-parse'
 import { supabaseAdmin, AuditResult } from './supabase'
 import { CLAIMFORGE_SYSTEM_PROMPT, buildUserPrompt } from './prompts'
 import { parseEsxFile } from './esx-parser'
@@ -18,6 +17,8 @@ function getAnthropic(): Anthropic {
 }
 
 async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
+  // Dynamic import — pdf-parse uses DOMMatrix which is unavailable in Node.js serverless
+  const { PDFParse } = await import('pdf-parse')
   const parser = new PDFParse({ data: pdfBuffer })
   const result = await parser.getText()
   return result.text
