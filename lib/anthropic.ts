@@ -80,7 +80,7 @@ export async function runAudit(
     // Call Claude
     const message = await getAnthropic().messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8096,
+      max_tokens: 16000,
       system: CLAIMFORGE_SYSTEM_PROMPT,
       messages: [
         {
@@ -100,11 +100,29 @@ export async function runAudit(
     let auditResult: AuditResult
     try {
       // Strip any potential markdown code fences
-      const cleanJson = responseText
+      let cleanJson = responseText
         .replace(/^```json\s*/i, '')
         .replace(/^```\s*/i, '')
         .replace(/\s*```$/i, '')
         .trim()
+      // If JSON is truncated (token limit), attempt to close it so it parses
+      if (!cleanJson.endsWith('}')) {
+        // Find the last complete top-level structure and close it
+        const summaryEnd = cleanJson.lastIndexOf('"summary"')
+        if (summaryEnd > 0) {
+          // Try closing at the summary level if line_items/missing_items got truncated
+          // Trim everything from line_items/missing_items array onward
+          const truncIdx = Math.max(
+            cleanJson.lastIndexOf(',\n  "line_items"'),
+            cleanJson.lastIndexOf(',\n  "missing_items"'),
+            cleanJson.lastIndexOf(',"line_items"'),
+            cleanJson.lastIndexOf(',"missing_items"')
+          )
+          if (truncIdx > 0) cleanJson = cleanJson.slice(0, truncIdx) + '\n}'
+        } else {
+          cleanJson = cleanJson + '"}}'
+        }
+      }
       auditResult = JSON.parse(cleanJson)
     } catch (e) {
       throw new Error(`Failed to parse Claude response as JSON: ${e instanceof Error ? e.message : String(e)}`)

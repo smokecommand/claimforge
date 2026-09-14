@@ -224,8 +224,24 @@ export async function parseEsxFile(buffer: Buffer): Promise<string> {
     }
 
     if (xmlContents.length === 0 && !allText) {
-      // Return list of entries as fallback
-      return `=== ESX ESTIMATE IMPORT ===\nFile entries: ${entries.map((e) => e.entryName).join(', ')}\n\nNo readable XML content found.`
+      // Xactimate ESX files store estimate data in XACTDOC.ZIPXML which is a proprietary
+      // binary format that cannot be decoded without Xactimate software.
+      // Direct users to upload the Xactimate-exported PDF instead.
+      const hasZipXml = entries.some(e => e.entryName.toLowerCase().endsWith('.zipxml'))
+      const entryList = entries
+        .filter(e => !e.isDirectory)
+        .map(e => `${e.entryName} (${Math.round(e.getData().length / 1024)}KB)`)
+        .join(', ')
+
+      if (hasZipXml) {
+        throw new Error(
+          'This ESX file contains Xactimate\'s proprietary ZIPXML format which cannot be decoded directly. ' +
+          'To audit this estimate, please export a PDF from Xactimate: File → Print → Save as PDF, ' +
+          'then upload the PDF instead.'
+        )
+      }
+
+      return `=== ESX ESTIMATE IMPORT ===\nFile entries: ${entryList}\n\nNo readable XML content found.`
     }
 
     // Parse the primary XML (largest file is usually the estimate)
