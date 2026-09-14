@@ -5,9 +5,17 @@ import { CLAIMFORGE_SYSTEM_PROMPT, buildUserPrompt } from './prompts'
 import { parseEsxFile } from './esx-parser'
 import { sendAuditNotification } from './notifications'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+// Lazy init — avoid crashing the module on Vercel if key is missing at load time
+let _anthropic: Anthropic | null = null
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not set')
+    }
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  }
+  return _anthropic
+}
 
 async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
   const parser = new PDFParse({ data: pdfBuffer })
@@ -69,7 +77,7 @@ export async function runAudit(
     const userPrompt = buildUserPrompt(estimateText, lossType, jobName, claimNumber, carrier, jobNotes)
 
     // Call Claude
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 8096,
       system: CLAIMFORGE_SYSTEM_PROMPT,

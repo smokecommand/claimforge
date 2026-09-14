@@ -5,9 +5,13 @@ import { supabaseAdmin } from '@/lib/supabase'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+let _anthropic: Anthropic | null = null
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  }
+  return _anthropic
+}
 
 const REBUTTAL_SYSTEM_PROMPT = `You are ClaimForge's rebuttal specialist. You write formal, citation-backed rebuttal letters for restoration contractors when insurance carriers deny or cut estimate line items.
 
@@ -100,7 +104,7 @@ Critical Gaps Noted: ${(auditSummary?.critical_gaps ?? []).join('; ') || 'None'}
 
 Please generate a formal rebuttal letter with specific IICRC S-500/S-700 citations for each denied/cut item, plus a professional cover letter.`
 
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: REBUTTAL_SYSTEM_PROMPT,
