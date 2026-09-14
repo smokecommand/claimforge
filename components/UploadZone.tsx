@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabaseBrowser } from '@/lib/supabase-browser'
 
 type LossType = 'water' | 'fire+smoke' | 'water+fire+smoke'
 
@@ -110,17 +109,26 @@ export default function UploadZone() {
       const presignData = await presignRes.json()
       if (!presignRes.ok) throw new Error(presignData.error || 'Failed to prepare upload')
 
-      const { auditId, filePath, token } = presignData
+      const { auditId, signedUrl } = presignData
 
-      // Step 2: Upload file directly to Supabase Storage (no Vercel size limit)
+      // Step 2: Upload file directly to Supabase Storage via signed URL (no Vercel size limit)
       setUploadProgress(`Uploading ${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB...`)
-      const { error: uploadError } = await supabaseBrowser.storage
-        .from('claimforge-pdfs')
-        .uploadToSignedUrl(filePath, token, selectedFile, {
-          contentType: fileType === 'pdf' ? 'application/pdf' : 'application/zip',
-        })
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: {
+          'Content-Type': fileType === 'pdf' ? 'application/pdf' : 'application/octet-stream',
+        },
+      })
 
-      if (uploadError) throw new Error(uploadError.message || 'File upload failed')
+      if (!uploadRes.ok) {
+        let errMsg = `Upload failed (${uploadRes.status})`
+        try {
+          const errBody = await uploadRes.text()
+          if (errBody) errMsg += `: ${errBody.slice(0, 200)}`
+        } catch { /* ignore */ }
+        throw new Error(errMsg)
+      }
 
       // Step 3: Kick off the audit
       setUploadProgress('Starting audit...')
