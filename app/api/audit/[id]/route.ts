@@ -28,3 +28,36 @@ export async function GET(
 
   return NextResponse.json(data)
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+
+  if (!id) {
+    return NextResponse.json({ error: 'Audit ID required' }, { status: 400 })
+  }
+
+  // Only allow deletion of pending/processing/error audits — not completed ones
+  const { data: audit } = await supabaseAdmin
+    .from('cf_audits')
+    .select('status')
+    .eq('id', id)
+    .single()
+
+  if (!audit) {
+    return NextResponse.json({ error: 'Audit not found' }, { status: 404 })
+  }
+
+  const { error } = await supabaseAdmin
+    .from('cf_audits')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ deleted: true })
+}

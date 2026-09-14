@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { CfAudit } from '@/lib/supabase'
+import DeleteAuditButton from '@/components/DeleteAuditButton'
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return '—'
@@ -205,6 +206,9 @@ export default async function AuditsPage() {
                       <Link href={`/audit/${audit.id}`} className="block">
                         {formatDate(audit.created_at)}
                       </Link>
+                    </td>
+                    <td className="px-2 py-3 text-right">
+                      <DeleteAuditButton auditId={audit.id} />
                     </td>
                   </tr>
                 )
